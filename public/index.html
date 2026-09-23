@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Weather</title>
+<style>
+  :root {
+    --sky-deep: #1b2a4a;
+    --sky-mid: #2f4a7a;
+    --sun: #f2a154;
+    --paper: #f7f5f0;
+    --ink: #1b2a4a;
+    --ink-soft: #5b6a86;
+    --line: #dcdfe6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  header {
+    background: linear-gradient(160deg, var(--sky-deep), var(--sky-mid));
+    color: #fff;
+    padding: 40px 24px 56px;
+  }
+  header .top-row {
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  .unit-toggle {
+    display: flex;
+    border: 1px solid rgba(255,255,255,0.35);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .unit-toggle button {
+    background: none;
+    border: none;
+    color: #fff;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    opacity: 0.6;
+  }
+  .unit-toggle button.active {
+    background: rgba(255,255,255,0.18);
+    opacity: 1;
+  }
+
+  #home-card {
+    max-width: 720px;
+    margin: 28px auto 0;
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+  }
+  #home-card .temp {
+    font-size: 4.2rem;
+    font-weight: 300;
+    line-height: 1;
+  }
+  #home-card .details {
+    padding-bottom: 6px;
+  }
+  #home-card .place {
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+  #home-card .meta {
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.75);
+    margin-top: 4px;
+  }
+
+  main {
+    max-width: 720px;
+    margin: -24px auto 60px;
+    padding: 0 24px;
+  }
+
+  .panel {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px;
+    margin-top: 24px;
+  }
+
+  .panel h2 {
+    font-size: 0.95rem;
+    text-transform: none;
+    margin: 0 0 14px;
+    color: var(--ink);
+  }
+
+  #search-box {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 0.95rem;
+  }
+  #search-box:focus {
+    outline: none;
+    border-color: var(--sky-mid);
+  }
+
+  .result-row, .saved-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 2px;
+    border-bottom: 1px solid var(--line);
+  }
+  .result-row:last-child, .saved-row:last-child {
+    border-bottom: none;
+  }
+  .row-name {
+    font-size: 0.95rem;
+  }
+  .row-sub {
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+  }
+  .row-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .row-temp {
+    font-size: 0.95rem;
+    color: var(--ink-soft);
+    min-width: 44px;
+    text-align: right;
+  }
+
+  .star-btn, .delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 4px;
+    color: var(--ink-soft);
+  }
+  .star-btn.saved {
+    color: var(--sun);
+  }
+  .delete-btn {
+    font-size: 0.85rem;
+    color: #b23b3b;
+  }
+
+  .result-row, .saved-row {
+    cursor: pointer;
+  }
+  .row-right button {
+    position: relative;
+    z-index: 2;
+  }
+
+  #search-results:empty::after,
+  #saved-list:empty::after {
+    content: "";
+  }
+  .empty-msg {
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    padding: 6px 2px;
+  }
+
+  /* ---- Detail panel ---- */
+  #detail-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(16, 22, 38, 0.45);
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 10;
+  }
+  #detail-overlay.open {
+    display: flex;
+  }
+  #detail-panel {
+    background: #fff;
+    width: 100%;
+    max-width: 480px;
+    border-radius: 18px 18px 0 0;
+    padding: 24px;
+    box-shadow: 0 -6px 24px rgba(0,0,0,0.15);
+  }
+  @media (min-width: 560px) {
+    #detail-overlay { align-items: center; }
+    #detail-panel { border-radius: 16px; }
+  }
+  #detail-panel .detail-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  #detail-panel .detail-place {
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+  #detail-panel .detail-sub {
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+  #detail-close {
+    background: none;
+    border: none;
+    font-size: 1.3rem;
+    color: var(--ink-soft);
+    cursor: pointer;
+    line-height: 1;
+  }
+  #detail-temp {
+    font-size: 3rem;
+    font-weight: 300;
+    margin: 18px 0 4px;
+  }
+  #detail-condition {
+    font-size: 0.95rem;
+    color: var(--ink-soft);
+    margin-bottom: 18px;
+  }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .detail-stat {
+    background: var(--paper);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .detail-stat .label {
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+  }
+  .detail-stat .value {
+    font-size: 1.05rem;
+    margin-top: 2px;
+  }
+  #detail-save-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    background: var(--sky-deep);
+    color: #fff;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  #detail-save-btn.saved {
+    background: #eee;
+    color: var(--ink);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="top-row">
+    <h1>Weather</h1>
+    <div class="unit-toggle">
+      <button id="unit-c" class="active">°C</button>
+      <button id="unit-f">°F</button>
+    </div>
+  </div>
+  <div id="home-card">
+    <div class="temp" id="home-temp">–</div>
+    <div class="details">
+      <div class="place" id="home-place">Loading…</div>
+      <div class="meta" id="home-meta"></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="panel">
+    <h2>Search location</h2>
+    <input id="search-box" type="text" placeholder="e.g. Seoul, Stockholm, Busan…" autocomplete="off" />
+    <div id="search-results" style="margin-top: 8px;"></div>
+  </div>
+
+  <div class="panel">
+    <h2>My List</h2>
+    <div id="saved-list"></div>
+  </div>
+</main>
+
+<div id="detail-overlay">
+  <div id="detail-panel">
+    <div class="detail-top">
+      <div>
+        <div class="detail-place" id="detail-place">–</div>
+        <div class="detail-sub" id="detail-sub"></div>
+      </div>
+      <button id="detail-close">✕</button>
+    </div>
+    <div id="detail-temp">–</div>
+    <div id="detail-condition"></div>
+    <div class="detail-grid">
+      <div class="detail-stat">
+        <div class="label">Feels like</div>
+        <div class="value" id="detail-feels">–</div>
+      </div>
+      <div class="detail-stat">
+        <div class="label">Humidity</div>
+        <div class="value" id="detail-humidity">–</div>
+      </div>
+      <div class="detail-stat">
+        <div class="label">Wind</div>
+        <div class="value" id="detail-wind">–</div>
+      </div>
+      <div class="detail-stat">
+        <div class="label">Today's high/low</div>
+        <div class="value" id="detail-highlow">–</div>
+      </div>
+    </div>
+    <button id="detail-save-btn">★ Save to my list</button>
+  </div>
+</div>
+
+<script>
+  let unit = "C";
+  let savedLocations = [];
+
+  const homeTemp = document.getElementById("home-temp");
+  const homePlace = document.getElementById("home-place");
+  const homeMeta = document.getElementById("home-meta");
+  const searchBox = document.getElementById("search-box");
+  const searchResults = document.getElementById("search-results");
+  const savedList = document.getElementById("saved-list");
+  const unitCBtn = document.getElementById("unit-c");
+  const unitFBtn = document.getElementById("unit-f");
+
+  function weatherLabel(code) {
+    if (code === 0) return "Clear";
+    if ([1, 2, 3].includes(code)) return "Cloudy";
+    if ([45, 48].includes(code)) return "Fog";
+    if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return "Rain";
+    if ([71, 73, 75, 85, 86].includes(code)) return "Snow";
+    if ([95, 96, 99].includes(code)) return "Thunderstorm";
+    return "";
+  }
+
+  async function loadHome() {
+    homePlace.textContent = "Loading…";
+    const res = await fetch(`/api/home?unit=${unit}`);
+    const data = await res.json();
+    homeTemp.textContent = `${Math.round(data.weather.temperature_2m)}°`;
+    homePlace.textContent = data.location.name;
+    homeMeta.textContent = `${weatherLabel(data.weather.weather_code)} · ${data.weather.relative_humidity_2m}% humidity`;
+  }
+
+  async function loadSaved() {
+    const res = await fetch("/api/locations");
+    const data = await res.json();
+    savedLocations = data.locations;
+    renderSaved();
+  }
+
+  function isSaved(name, lat, lon) {
+    return savedLocations.some((l) => l.name === name && l.lat === lat && l.lon === lon);
+  }
+
+  async function renderSaved() {
+    if (savedLocations.length === 0) {
+      savedList.innerHTML = `<div class="empty-msg">No saved places yet. Search and tap the star.</div>`;
+      return;
+    }
+    savedList.innerHTML = savedLocations
+      .map(
+        (l) => `
+      <div class="saved-row" data-id="${l.id}" data-name="${l.name}" data-country="${l.country || ""}" data-admin1="${l.admin1 || ""}" data-lat="${l.lat}" data-lon="${l.lon}">
+        <div>
+          <div class="row-name">${l.name}</div>
+          <div class="row-sub">${[l.admin1, l.country].filter(Boolean).join(", ")}</div>
+        </div>
+        <div class="row-right">
+          <span class="row-temp" id="temp-${l.id}">…</span>
+          <button class="delete-btn" data-id="${l.id}">Remove</button>
+        </div>
+      </div>`
+      )
+      .join("");
+
+    savedList.querySelectorAll(".delete-btn").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        await fetch(`/api/locations/${btn.dataset.id}`, { method: "DELETE" });
+        await loadSaved();
+      });
+    });
+
+    savedList.querySelectorAll(".saved-row").forEach((row) => {
+      row.addEventListener("click", () => {
+        openDetail({
+          name: row.dataset.name,
+          country: row.dataset.country,
+          admin1: row.dataset.admin1,
+          lat: parseFloat(row.dataset.lat),
+          lon: parseFloat(row.dataset.lon),
+        });
+      });
+    });
+
+    savedLocations.forEach(async (l) => {
+      const r = await fetch(`/api/weather?lat=${l.lat}&lon=${l.lon}&unit=${unit}`);
+      const d = await r.json();
+      const el = document.getElementById(`temp-${l.id}`);
+      if (el) el.textContent = `${Math.round(d.weather.temperature_2m)}°`;
+    });
+  }
+
+  let searchTimeout;
+  searchBox.addEventListener("input", () => {
+    clearTimeout(searchTimeout);
+    const q = searchBox.value.trim();
+    if (q.length < 2) {
+      searchResults.innerHTML = "";
+      return;
+    }
+    searchTimeout = setTimeout(() => doSearch(q), 300);
+  });
+
+  async function doSearch(q) {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    if (data.results.length === 0) {
+      searchResults.innerHTML = `<div class="empty-msg">No results.</div>`;
+      return;
+    }
+    searchResults.innerHTML = data.results
+      .map(
+        (p) => `
+      <div class="result-row" data-lat="${p.lat}" data-lon="${p.lon}" data-name="${p.name}" data-country="${p.country || ""}" data-admin1="${p.admin1 || ""}">
+        <div>
+          <div class="row-name">${p.name}</div>
+          <div class="row-sub">${[p.admin1, p.country].filter(Boolean).join(", ")}</div>
+        </div>
+        <button class="star-btn ${isSaved(p.name, p.lat, p.lon) ? "saved" : ""}">★</button>
+      </div>`
+      )
+      .join("");
+
+    searchResults.querySelectorAll(".result-row").forEach((row) => {
+      const starBtn = row.querySelector(".star-btn");
+      starBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        await saveLocation({
+          name: row.dataset.name,
+          country: row.dataset.country,
+          admin1: row.dataset.admin1,
+          lat: parseFloat(row.dataset.lat),
+          lon: parseFloat(row.dataset.lon),
+        });
+        starBtn.classList.add("saved");
+        await loadSaved();
+      });
+
+      row.addEventListener("click", () => {
+        openDetail({
+          name: row.dataset.name,
+          country: row.dataset.country,
+          admin1: row.dataset.admin1,
+          lat: parseFloat(row.dataset.lat),
+          lon: parseFloat(row.dataset.lon),
+        });
+      });
+    });
+  }
+
+  async function saveLocation(place) {
+    await fetch("/api/locations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(place),
+    });
+  }
+
+  unitCBtn.addEventListener("click", () => setUnit("C"));
+  unitFBtn.addEventListener("click", () => setUnit("F"));
+
+  function setUnit(u) {
+    unit = u;
+    unitCBtn.classList.toggle("active", u === "C");
+    unitFBtn.classList.toggle("active", u === "F");
+    loadHome();
+    renderSaved();
+  }
+
+  // ---------- Detail panel ----------
+  const detailOverlay = document.getElementById("detail-overlay");
+  const detailPlace = document.getElementById("detail-place");
+  const detailSub = document.getElementById("detail-sub");
+  const detailTemp = document.getElementById("detail-temp");
+  const detailCondition = document.getElementById("detail-condition");
+  const detailFeels = document.getElementById("detail-feels");
+  const detailHumidity = document.getElementById("detail-humidity");
+  const detailWind = document.getElementById("detail-wind");
+  const detailHighlow = document.getElementById("detail-highlow");
+  const detailSaveBtn = document.getElementById("detail-save-btn");
+  const detailClose = document.getElementById("detail-close");
+
+  let currentDetailPlace = null;
+
+  async function openDetail(place) {
+    currentDetailPlace = place;
+    detailPlace.textContent = place.name;
+    detailSub.textContent = [place.admin1, place.country].filter(Boolean).join(", ");
+    detailTemp.textContent = "…";
+    detailCondition.textContent = "";
+    detailFeels.textContent = "–";
+    detailHumidity.textContent = "–";
+    detailWind.textContent = "–";
+    detailHighlow.textContent = "–";
+    updateSaveButton();
+    detailOverlay.classList.add("open");
+
+    const res = await fetch(
+      `/api/weather?lat=${place.lat}&lon=${place.lon}&unit=${unit}&detailed=1`
+    );
+    const data = await res.json();
+    const w = data.weather;
+    const deg = "°" + unit;
+
+    detailTemp.textContent = `${Math.round(w.temperature_2m)}°`;
+    detailCondition.textContent = weatherLabel(w.weather_code);
+    detailFeels.textContent = `${Math.round(w.apparent_temperature)}${deg}`;
+    detailHumidity.textContent = `${w.relative_humidity_2m}%`;
+    detailWind.textContent = `${Math.round(w.wind_speed_10m)} km/h`;
+    if (w.temp_max_today !== undefined && w.temp_min_today !== undefined) {
+      detailHighlow.textContent = `${Math.round(w.temp_max_today)}° / ${Math.round(w.temp_min_today)}°`;
+    }
+  }
+
+  function updateSaveButton() {
+    const saved = isSaved(currentDetailPlace.name, currentDetailPlace.lat, currentDetailPlace.lon);
+    detailSaveBtn.textContent = saved ? "Saved ✓ (click to remove)" : "★ Save to my list";
+    detailSaveBtn.classList.toggle("saved", saved);
+  }
+
+  detailSaveBtn.addEventListener("click", async () => {
+    const saved = isSaved(currentDetailPlace.name, currentDetailPlace.lat, currentDetailPlace.lon);
+    if (saved) {
+      const match = savedLocations.find(
+        (l) => l.name === currentDetailPlace.name && l.lat === currentDetailPlace.lat && l.lon === currentDetailPlace.lon
+      );
+      if (match) await fetch(`/api/locations/${match.id}`, { method: "DELETE" });
+    } else {
+      await saveLocation(currentDetailPlace);
+    }
+    await loadSaved();
+    updateSaveButton();
+  });
+
+  function closeDetail() {
+    detailOverlay.classList.remove("open");
+  }
+  detailClose.addEventListener("click", closeDetail);
+  detailOverlay.addEventListener("click", (e) => {
+    if (e.target === detailOverlay) closeDetail();
+  });
+
+  loadHome();
+  loadSaved();
+</script>
+
+</body>
+</html>
